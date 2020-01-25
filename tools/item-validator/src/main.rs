@@ -1,3 +1,5 @@
+use std::path::Path;
+use std::{fs, io};
 use std::fs::File;
 use std::io::Read;
 use std::str;
@@ -6,8 +8,20 @@ mod item_model;
 
 pub use crate::item_model::*;
 
-fn main() {
 
+fn get_item_files(path: &Path,file_buffers: &mut Vec<Vec<u8>>) -> io::Result<()> {
+    let files = fs::read_dir(path)?;
+    for file in files{
+            println!("{:#?}", file)
+    }
+    Ok(())
+}
+
+fn main() {
+    let mut file_buffers :Vec<Vec<u8>> = Vec::new();
+    let path_for_item_files = Path::new("../../../data/items/");
+
+    get_item_files(&path_for_item_files, &mut file_buffers).unwrap();
     let mut file = File::open("../../../data/items/1-explosive-uni.yaml").expect("can't find file");
     
 
