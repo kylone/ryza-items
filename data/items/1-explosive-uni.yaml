@@ -11,95 +11,97 @@ Materials:
 - (Uni)
 - (Gunpowder)
 - (Fuel)
-Recipe Material Loops:
-- Effect 1:
-    Distance: 0
-    Position: 0
-    Material: (Uni)
-    Element: Lightning
-    Loops:
-    - Scatter: 
-        Element Value: 3
-    - Explosive:
-        Element Value: 8
-- Effect 2:
-    Distance: 1
-    Position: 1
-    Linked From Position: 0
-    Material: (Gunpowder)
-    Element: Fire
-    Meterial Loops:
-    - Uni Spike S:
-        Element Value: 1
-    - Uni Spike M:
-        Element Value: 3
-- Effect 3:
-    Distance: 1
-    Position: 2
-    Linked From Position: 0
-    Material: (Fuel)
-    Element: Fire
-    Material Loops:
-    - Surprise! S:
-        Element Value: 1
-    - Surprise! M:
-        Element Value: 3
-- Traits:
-    Distance: 2
-    Position 3:
-    Linked From Position: 1
-    Material: (Fuel)
-    Element: Fire
-    Material Loops:
-    - Trait Slot:
-        Element Value: 1
-    - Trait Slot:
-        Element Value: 3
-    - Trait Slot:
-        Element: 6
-- Effect 2:
-    Distance: 2
-    Position: 4
-    Linked From Position: 1
-    Material: (Gunpowder)
-    Element: Ice
-    Meterial Loops:
-    - Uni Spike L: 
-        Element Value: 4
-    Unlock:
-    - Fire: 3
-- Recipe:
-    Distance: 2
-    Position: 5
-    Linked From Position: 1
-    Material: Red Supplement
-    Element: Fire
-    Material Loops:
-    - Recipe Morph:
-        Recipe: Craft
-        Required Alchemy Level: 4
-        Element Value: 2
-    Unlock:
-      Fire: 2
-- Effect 3:
-    Distance: 2
-    Position: 6
-    Linked From Position: 2
-    Material: (Gunpowder)
-    Element: Wind
-    Material Loops:
-    - Surprise! L:
-        Element Value: 2
-- Recipe:
-    Distance: 2
-    Position: 7
-    Linked From Position: 2
-    Material: Blue Supplement
-    Element: Ice
-    Material Loops:
-    - Recipe Morph:
-        Recipe: Ice Caltrop
-        Required Alchemy Level: 4
-        Element Value: 2
-    Unlock:
-      Wind: 1
+Synthesis:
+  Required Materials: 2
+  Material Loops:
+    - Effect 1:
+        Distance: 0
+        Position: 0
+        Material: (Uni)
+        Element: Lightning
+        Loops:
+        - Scatter: 
+            Element Value: 3
+        - Explosive:
+            Element Value: 5
+    - Effect 2:
+        Distance: 1
+        Position: 1
+        Linked From Position: 0
+        Material: (Gunpowder)
+        Element: Fire
+        Meterial Loops:
+        - Uni Spike S:
+            Element Value: 1
+        - Uni Spike M:
+            Element Value: 2
+    - Effect 3:
+        Distance: 1
+        Position: 2
+        Linked From Position: 0
+        Material: (Fuel)
+        Element: Fire
+        Material Loops:
+        - Surprise! S:
+            Element Value: 1
+        - Surprise! M:
+            Element Value: 2
+    - Traits:
+        Distance: 2
+        Position 3:
+        Linked From Position: 1
+        Material: (Fuel)
+        Element: Fire
+        Material Loops:
+        - Trait Slot:
+            Element Value: 1
+        - Trait Slot:
+            Element Value: 2
+        - Trait Slot:
+            Element Value: 3
+    - Effect 2:
+        Distance: 2
+        Position: 4
+        Linked From Position: 1
+        Material: (Gunpowder)
+        Element: Ice
+        Meterial Loops:
+        - Uni Spike L: 
+            Element Value: 4
+        Unlock:
+        - Fire: 3
+    - Recipe:
+        Distance: 2
+        Position: 5
+        Linked From Position: 1
+        Material: Red Supplement
+        Element: Fire
+        Material Loops:
+        - Recipe Morph:
+            Recipe: Craft
+            Required Alchemy Level: 4
+            Element Value: 2
+        Unlock:
+        Fire: 2
+    - Effect 3:
+        Distance: 2
+        Position: 6
+        Linked From Position: 2
+        Material: (Gunpowder)
+        Element: Wind
+        Material Loops:
+        - Surprise! L:
+            Element Value: 2
+    - Recipe:
+        Distance: 2
+        Position: 7
+        Linked From Position: 2
+        Material: Blue Supplement
+        Element: Ice
+        Material Loops:
+        - Recipe Morph:
+            Recipe: Ice Caltrop
+            Required Alchemy Level: 4
+            Element Value: 2
+        Unlock:
+        Wind: 1
