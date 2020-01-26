@@ -1,8 +1,5 @@
 use std::path::Path;
 use std::{fs, io};
-use std::fs::File;
-use std::io::Read;
-use std::str;
 
 // extern crate yaml_rust;
 // use yaml_rust::YamlLoader;
