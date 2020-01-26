@@ -1,8 +1,10 @@
 use std::path::Path;
 use std::{fs, io};
 
-// extern crate yaml_rust;
-// use yaml_rust::YamlLoader;
+extern crate yaml_rust;
+use yaml_rust::{YamlLoader, ScanError, Yaml};
+
+extern crate term;
 
 // code for str -> Yaml
 //let item_doc = YamlLoader::load_from_str(item_text)?;
@@ -11,7 +13,6 @@ use std::{fs, io};
 // mod item_model;
 // use crate::item_model::*;
 
-// get text from buffers
 
 struct FileContents{
     name: String,
@@ -23,6 +24,8 @@ fn load_item_files_into_buffers(item_buffers: &mut Vec<FileContents>, path: &Pat
     let files = fs::read_dir(path)?;
     for file_result in files{
         let file = file_result?;
+
+        // get the file name, as a normal (utf8) string
         let file_name = file.file_name().to_string_lossy().to_string();
 
         // read open and read file as a string
@@ -36,30 +39,47 @@ fn load_item_files_into_buffers(item_buffers: &mut Vec<FileContents>, path: &Pat
     Ok(())
 }
 
+fn validate_yaml_key(yaml: &Yaml, key: &str) {
+    let item_name_element = &yaml[key];
+
+    let mut terminal = term::stdout().unwrap();
+
+    if item_name_element.is_badvalue(){
+        terminal.fg(term::color::BRIGHT_RED).unwrap();
+        println!("'{}' key is missing", key);
+        terminal.reset().unwrap();
+    }
+
+}
+
+fn validate_item_contents(contents:&str) -> Result<(),ScanError> {
+    let docs = YamlLoader::load_from_str(contents)?;
+    // YAML files can actually contain multiple files inside, we want the first one
+    let doc = &docs[0];
+    validate_yaml_key(&doc, "Name");
+    validate_yaml_key(&doc, "Item Number");
+    validate_yaml_key(&doc, "Level");
+
+    Ok(())
+}
+
 fn main() {
     let mut item_buffers :Vec<FileContents> = Vec::new();
     let path_for_item_files = Path::new("../../../data/items/");
     load_item_files_into_buffers(&mut item_buffers, &path_for_item_files).unwrap();
 
     for file in item_buffers{
-        println!(" ---> {}", file.name);
-        println!("{}",file.contents);
-        println!("   -----     ");
+        println!("Validating {}", file.name);
+    
+        let result = validate_item_contents(&file.contents);
+        if result.is_err(){
+            println!("unable to validate {}", file.name)
+        }
+
+
     }
 
-    // let mut buffer = Vec::new();
-    // // read the whole file
-    // file.read_to_end(&mut buffer).expect("unable to read from file");
 
-    // let item_text = str::from_utf8(&buffer).expect("file is not valid utf8");
-    // println!("{}",item_text);
 
-    // let x = Item{
-    //     name: "test".to_string(),
-    //     item_number: 1,
-    //     level: 1,
-    //     category_list: vec!["".to_string()],
-    //     elements : vec![ElementValue{element:Element::Fire, element_value:1}]
-    // };
 
 }
