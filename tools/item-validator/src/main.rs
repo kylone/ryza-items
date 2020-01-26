@@ -16,42 +16,37 @@ use std::str;
 
 // get text from buffers
 
-fn load_item_files_into_buffers(item_buffers: &mut Vec<Vec<u8>>, path: &Path) -> io::Result<()> {
+struct FileContents{
+    name: String,
+    contents: String,
+}
+
+
+fn load_item_files_into_buffers(item_buffers: &mut Vec<FileContents>, path: &Path) -> io::Result<()> {
     let files = fs::read_dir(path)?;
     for file_result in files{
         let file = file_result?;
-        let file_name = file.file_name();
-        println!("opening {:?}", file_name);
-        let mut file = File::open(file.path())?;
-        
-        let mut file_buffer = Vec::new();
-        // read the whole file
-        file.read_to_end(&mut file_buffer)?;
-        // store in buffer vector
-        item_buffers.push(file_buffer);
+        let file_name = file.file_name().to_string_lossy().to_string();
+
+        // read open and read file as a string
+        let contents = fs::read_to_string(file.path())?;
+       
+        item_buffers.push(FileContents{
+            name:file_name,
+            contents: contents
+        });
     }
     Ok(())
 }
 
-fn convert_item_buffers_into_text(item_buffers: &Vec<Vec<u8>>) -> Vec<&str>  {
-    let mut item_texts : Vec<&str> = Vec::new();
-    for buffer in item_buffers{
-        let item_text = str::from_utf8(buffer).expect("file is not valid utf8");
-        item_texts.push(item_text);
-    }
-
-    item_texts
-}
-
 fn main() {
-    let mut item_buffers :Vec<Vec<u8>> = Vec::new();
+    let mut item_buffers :Vec<FileContents> = Vec::new();
     let path_for_item_files = Path::new("../../../data/items/");
     load_item_files_into_buffers(&mut item_buffers, &path_for_item_files).unwrap();
 
-    let item_texts =convert_item_buffers_into_text(&item_buffers);
-
-    for text in item_texts{
-        println!("{}",text);
+    for file in item_buffers{
+        println!(" ---> {}", file.name);
+        println!("{}",file.contents);
         println!("   -----     ");
     }
 
