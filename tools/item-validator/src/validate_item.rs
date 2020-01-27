@@ -98,6 +98,16 @@ fn validate_list_values(yaml: &Yaml, validation_set: &HashSet<String>, key: &str
                     println!("  {}: {} is not a valid value", key, value);
                 }
             }
+            if let Some(value) = value.as_hash() {
+                for (hash_key, _) in value{
+                    if let Some(hash_key) = hash_key.as_str(){
+                        if validation_set.contains(hash_key) == false{
+                            all_values_valid = false;
+                            println!("  {}: {} is not a valid value", key, hash_key);
+                        }
+                    }
+                }
+            }
         }
         terminal.reset().unwrap();
         if all_values_valid && only_output_invalid == false{
@@ -124,6 +134,9 @@ pub fn validate_item_contents(contents: &str, item_validation_sets: &ItemValidat
     }
     if validate_key_exists(&doc, "Classifications", only_output_invalid){
         validate_list_values(&doc, &item_validation_sets.classifications, "Classifications", only_output_invalid);
+    }
+    if validate_key_exists(&doc, "Element", only_output_invalid){
+        validate_list_values(&doc, &item_validation_sets.elements, "Element", only_output_invalid);
     }
     Ok(())
 }
