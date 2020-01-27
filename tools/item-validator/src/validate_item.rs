@@ -4,6 +4,8 @@ use yaml_rust::{ScanError, Yaml, YamlLoader};
 
 extern crate term;
 
+use regex::Regex;
+
 pub struct ItemValidationSets {
     pub elements: HashSet<String>,
     pub categories: HashSet<String>,
@@ -55,7 +57,7 @@ fn add_to_set(yaml: &Yaml, key: &str, set: &mut HashSet<String>) {
     set.shrink_to_fit();
 }
 
-fn validate_key_exists(yaml: &Yaml, key: &str, only_output_invalid: bool) -> bool {
+fn validate_key_exists(yaml: &Yaml, key: &str, optional: bool, only_output_invalid: bool) -> bool {
     let value = &yaml[key];
 
     // there's a whole bunch of .unwrap() calls with the term crate
@@ -63,7 +65,7 @@ fn validate_key_exists(yaml: &Yaml, key: &str, only_output_invalid: bool) -> boo
 
     let mut terminal = term::stdout().unwrap();
 
-    if value.is_badvalue() {
+    if value.is_badvalue() && !optional {
         terminal.fg(term::color::BRIGHT_RED).unwrap();
         println!("'{}' key is missing", key);
         terminal.reset().unwrap();
@@ -72,7 +74,7 @@ fn validate_key_exists(yaml: &Yaml, key: &str, only_output_invalid: bool) -> boo
         if !only_output_invalid {
             terminal.fg(term::color::BRIGHT_GREEN).unwrap();
 
-            print!("  {} is present", key);
+            print!("{} is present", key);
             terminal.reset().unwrap();
 
             if let Some(value) = value.as_str() {
@@ -85,6 +87,41 @@ fn validate_key_exists(yaml: &Yaml, key: &str, only_output_invalid: bool) -> boo
         }
 
         true // validation successful
+    }
+}
+
+fn validate_materials(
+    yaml: &Yaml,
+    validation_set: &HashSet<String>,
+    key: &str,
+    only_output_invalid: bool,
+) -> bool {
+    let value = &yaml[key];
+    let mut terminal = term::stdout().unwrap();
+
+    lazy_static! {
+        static ref CATEGORY_REGEX: Regex = Regex::new(r#"\(\w+\)"#).unwrap();
+    }
+    if let Some(list) = value.as_vec() {
+        let mut all_values_valid = true;
+        terminal.fg(term::color::BRIGHT_RED).unwrap();
+        for value in list {
+            if let Some(value) = value.as_str() {
+                if CATEGORY_REGEX.is_match(value) && !validation_set.contains(value) {
+                    all_values_valid = false;
+                    println!("{}: {} is not a valid value", key, value);
+                }
+            }
+        }
+        terminal.reset().unwrap();
+        if all_values_valid && !only_output_invalid {
+            terminal.fg(term::color::BRIGHT_GREEN).unwrap();
+            println!("{} values are valid", key);
+            terminal.reset().unwrap();
+        }
+        true
+    } else {
+        false // not a yaml list (a vector)
     }
 }
 
@@ -104,7 +141,7 @@ fn validate_list_values(
             if let Some(value) = value.as_str() {
                 if !validation_set.contains(value) {
                     all_values_valid = false;
-                    println!("  {}: {} is not a valid value", key, value);
+                    println!("{}: {} is not a valid value", key, value);
                 }
             }
             if let Some(value) = value.as_hash() {
@@ -112,7 +149,7 @@ fn validate_list_values(
                     if let Some(hash_key) = hash_key.as_str() {
                         if !validation_set.contains(hash_key) {
                             all_values_valid = false;
-                            println!("  {}: {} is not a valid value", key, hash_key);
+                            println!("{}: {} is not a valid value", key, hash_key);
                         }
                     }
                 }
@@ -121,7 +158,7 @@ fn validate_list_values(
         terminal.reset().unwrap();
         if all_values_valid && !only_output_invalid {
             terminal.fg(term::color::BRIGHT_GREEN).unwrap();
-            println!("  {} values are valid", key);
+            println!("{} values are valid", key);
             terminal.reset().unwrap();
         }
         true
@@ -138,10 +175,10 @@ pub fn validate_item_contents(
     let docs = YamlLoader::load_from_str(contents)?;
     // YAML files can actually contain multiple files inside, we want the first one
     let doc = &docs[0];
-    validate_key_exists(&doc, "Name", only_output_invalid);
-    validate_key_exists(&doc, "Item Number", only_output_invalid);
-    validate_key_exists(&doc, "Level", only_output_invalid);
-    if validate_key_exists(&doc, "Category", only_output_invalid) {
+    validate_key_exists(&doc, "Name", false, only_output_invalid);
+    validate_key_exists(&doc, "Item Number", false, only_output_invalid);
+    validate_key_exists(&doc, "Level", false, only_output_invalid);
+    if validate_key_exists(&doc, "Category", false, only_output_invalid) {
         validate_list_values(
             &doc,
             &item_validation_sets.categories,
@@ -149,7 +186,7 @@ pub fn validate_item_contents(
             only_output_invalid,
         );
     }
-    if validate_key_exists(&doc, "Classifications", only_output_invalid) {
+    if validate_key_exists(&doc, "Classifications", false, only_output_invalid) {
         validate_list_values(
             &doc,
             &item_validation_sets.classifications,
@@ -157,11 +194,19 @@ pub fn validate_item_contents(
             only_output_invalid,
         );
     }
-    if validate_key_exists(&doc, "Element", only_output_invalid) {
+    if validate_key_exists(&doc, "Element", false, only_output_invalid) {
         validate_list_values(
             &doc,
             &item_validation_sets.elements,
             "Element",
+            only_output_invalid,
+        );
+    }
+    if validate_key_exists(&doc, "Materials", true, only_output_invalid) {
+        validate_materials(
+            &doc,
+            &item_validation_sets.categories,
+            "Materials",
             only_output_invalid,
         );
     }

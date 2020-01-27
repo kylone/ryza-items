@@ -1,6 +1,9 @@
 mod file_contents;
 mod validate_item;
 
+#[macro_use]
+extern crate lazy_static;
+
 fn get_item_validation_sets() -> validate_item::ItemValidationSets {
     let item_list_contents =
         file_contents::load_lists_file("../../../data/lists.yml").expect("can't load lists.yml");
