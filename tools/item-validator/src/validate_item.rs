@@ -122,5 +122,8 @@ pub fn validate_item_contents(contents: &str, item_validation_sets: &ItemValidat
     if validate_key_exists(&doc, "Category", only_output_invalid){
         validate_list_values(&doc, &item_validation_sets.categories, "Category", only_output_invalid);
     }
+    if validate_key_exists(&doc, "Classifications", only_output_invalid){
+        validate_list_values(&doc, &item_validation_sets.classifications, "Classifications", only_output_invalid);
+    }
     Ok(())
 }
