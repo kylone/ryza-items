@@ -42,3 +42,30 @@ Item Categories: # these are the categories of items present in Atelier Ryza
 - (Accessory)
 - (Gathering)
 - (Important)
+Item Classifications:
+- Item Used
+- Battle Item
+- Attack
+- Equip Item
+- Armor
+- Weapon
+- Accessories
+- Ex. Equip
+- Synthesis Materials
+- Materials
+- Synthesis Item
+- Rare Item
+Elements:
+- Fire
+- Ice
+- Lightning
+- Wind
+Gathering Tools:
+- Staff
+- Reaper's Scythe
+- Woodcutter's Axe
+- Hammer
+- Fishing Rod
+- Bomb Rod
+- Bug Net
+

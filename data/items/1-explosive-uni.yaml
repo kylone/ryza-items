@@ -2,6 +2,10 @@
 Name: Explosive Uni
 Item Number: 1
 Level: 2
+Classifications:
+- Item Used
+- Battle Item
+- Attack
 CC Cost: 2
 Category:
 - (Bomb)
