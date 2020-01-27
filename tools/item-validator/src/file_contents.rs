@@ -26,7 +26,7 @@ pub fn load_item_files(item_contents: &mut Vec<FileContents>, path: &str) -> io:
 
         item_contents.push(FileContents {
             name: file_name,
-            contents: contents,
+            contents,
         });
     }
     Ok(())
