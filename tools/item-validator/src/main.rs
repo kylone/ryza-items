@@ -4,6 +4,8 @@ mod validate_item;
 #[macro_use]
 extern crate lazy_static;
 
+extern crate term;
+
 fn get_item_validation_sets() -> validate_item::ItemValidationSets {
     let item_list_contents =
         file_contents::load_lists_file("../../../data/lists.yml").expect("can't load lists.yml");
@@ -38,14 +40,32 @@ fn main() {
 
     for file in item_contents {
         println!("Validating {}", file.name);
-        let only_output_invalid = true;
         let result = validate_item::validate_item_contents(
             &file.contents,
             &item_validation_sets,
-            only_output_invalid,
+            
         );
+
+        let mut terminal = term::stdout().unwrap();
         if result.is_err() {
-            println!("unable to validate {}", file.name)
+            terminal.fg(term::color::BRIGHT_RED).unwrap();
+            println!("unable to validate {}", file.name);
+            terminal.reset().unwrap();
         }
+        else {
+            let results = result.unwrap();
+            terminal.fg(term::color::BRIGHT_GREEN).unwrap();
+            for msg in results.pass_messages{
+                println!("- {}", msg);
+            }
+            terminal.reset().unwrap();
+
+            terminal.fg(term::color::BRIGHT_RED).unwrap();
+            for msg in results.fail_messages{
+                println!("- {}", msg);
+            }
+            terminal.reset().unwrap();
+        }
+
     }
 }
