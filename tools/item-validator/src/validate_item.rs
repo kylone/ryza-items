@@ -1,9 +1,7 @@
 extern crate yaml_rust;
 use std::collections::HashSet;
-use yaml_rust::{ScanError, Yaml, YamlLoader};
 use std::fmt::Write;
-
-
+use yaml_rust::{ScanError, Yaml, YamlLoader};
 
 pub struct ValidationResults {
     pub valid: bool,
@@ -13,10 +11,10 @@ pub struct ValidationResults {
 
 impl ValidationResults {
     /// combine one set of results into another.  
-    /// 
+    ///
     /// The intent here is to have each type of validation to add messages to the total result
     /// while providing a means to reach to a particular result's `valid` value.
-    fn include(&mut self, other: ValidationResults){
+    fn include(&mut self, other: ValidationResults) {
         // need to make other mutable to move vec contents
         let mut other = other;
 
@@ -25,9 +23,9 @@ impl ValidationResults {
         self.fail_messages.append(&mut other.fail_messages);
     }
 
-    fn new() -> ValidationResults{
-        ValidationResults{
-            valid:true,
+    fn new() -> ValidationResults {
+        ValidationResults {
+            valid: true,
             pass_messages: Vec::new(),
             fail_messages: Vec::new(),
         }
@@ -85,39 +83,102 @@ fn add_to_set(yaml: &Yaml, key: &str, set: &mut HashSet<String>) {
     set.shrink_to_fit();
 }
 
+/// top level validation function for an item, returns ValidationResults, which contains a flag
+/// for whether the item is valid or not, and lists of pass and fail messages
+pub fn validate_item_contents(
+    contents: &str,
+    item_validation_sets: &ItemValidationSets,
+) -> Result<ValidationResults, ScanError> {
+    let mut results = ValidationResults::new();
+
+    let docs = YamlLoader::load_from_str(contents)?;
+    // YAML files can actually contain multiple files inside, we want the first one
+    let yaml = &docs[0];
+
+    // validate the presence of the keys that all items have
+    results.include(validate_key_exists(&yaml, "Name", true));
+    results.include(validate_key_exists(&yaml, "Item Number", true));
+    results.include(validate_key_exists(&yaml, "Level", true));
+    results.include(validate_list(
+        &yaml,
+        &item_validation_sets.categories,
+        "Category",
+        true,
+    ));
+    results.include(validate_list(
+        &yaml,
+        &item_validation_sets.classifications,
+        "Classifications",
+        true,
+    ));
+    results.include(validate_list(
+        &yaml,
+        &item_validation_sets.elements,
+        "Element",
+        true,
+    ));
+
+    let synthesis_required = should_have_synthesis(&yaml);
+
+    results.include(validate_list(
+        &yaml,
+        &item_validation_sets.categories,
+        "Materials",
+        synthesis_required,
+    ));
+    if synthesis_required {
+        results.include(validate_synthesis(&yaml["Synthesis"]));
+    }
+    Ok(results)
+}
+
+/// check to see if a particular key is a child of the given yaml position
 fn validate_key_exists(yaml: &Yaml, key: &str, required: bool) -> ValidationResults {
-    let mut results = ValidationResults::new(); 
+    let mut results = ValidationResults::new();
 
     let value = &yaml[key];
 
-    // there's a whole bunch of .unwrap() calls with the term crate
-    // if we can't work with the terminal, just panic
-
-
     if value.is_badvalue() && required {
-        results.fail_messages.push(format!("'{}' key is missing", key));
+        results
+            .fail_messages
+            .push(format!("'{}' key is missing", key));
         results.valid = false;
     } else if required {
-
         let mut pass_message = String::new();
-        write!(&mut pass_message,"{} is present", key ).unwrap();
+        write!(&mut pass_message, "{} is present", key).unwrap();
 
         if let Some(value) = value.as_str() {
-            write!(&mut pass_message,": {}", value).unwrap();
+            write!(&mut pass_message, ": {}", value).unwrap();
         } else if let Some(value) = value.as_i64() {
-            write!(&mut pass_message,": {}", value).unwrap();
-        } 
+            write!(&mut pass_message, ": {}", value).unwrap();
+        }
         results.pass_messages.push(pass_message);
         true; // validation successful
     }
     results
 }
 
+/// top level method for validating a list of the given YAML position
+fn validate_list(
+    yaml: &Yaml,
+    validation_set: &HashSet<String>,
+    key: &str,
+    required: bool,
+) -> ValidationResults {
+    let mut results = validate_key_exists(yaml, key, required);
+
+    if results.valid {
+        results.include(validate_list_values(yaml, validation_set, key, required));
+    }
+    results
+}
+
+/// validate a list of the given key with a given set of allowed values
 fn validate_list_values(
     yaml: &Yaml,
     validation_set: &HashSet<String>,
     key: &str,
-    required:bool,
+    required: bool,
 ) -> ValidationResults {
     let mut results = ValidationResults::new();
 
@@ -129,8 +190,9 @@ fn validate_list_values(
             if let Some(value) = value.as_str() {
                 if !validation_set.contains(value) {
                     results.valid = false;
-                    results.fail_messages.push(
-                        format!("{}: {} is not a valid value", key, value));
+                    results
+                        .fail_messages
+                        .push(format!("{}: {} is not a valid value", key, value));
                 }
             }
             if let Some(value) = value.as_hash() {
@@ -138,8 +200,9 @@ fn validate_list_values(
                     if let Some(hash_key) = hash_key.as_str() {
                         if !validation_set.contains(hash_key) {
                             results.valid = false;
-                            results.fail_messages.push(
-                                format!("{}: {} is not a valid value", key, hash_key));
+                            results
+                                .fail_messages
+                                .push(format!("{}: {} is not a valid value", key, hash_key));
                         }
                     }
                 }
@@ -147,65 +210,22 @@ fn validate_list_values(
         }
 
         if results.valid {
-            results.pass_messages.push(format!("{} values are valid", key));
+            results
+                .pass_messages
+                .push(format!("{} values are valid", key));
         }
-        
     } else {
-        if required { 
-        results.valid = false; // not a yaml list (a vector)
-        results.fail_messages.push(format!("{} is not a list", key));
+        if required {
+            results.valid = false; // not a yaml list (a vector)
+            results.fail_messages.push(format!("{} is not a list", key));
         }
     }
     results
 }
 
-fn validate_list( yaml: &Yaml,
-    validation_set: &HashSet<String>,
-    key: &str,
-    required:bool) -> ValidationResults{
-    let mut results = validate_key_exists(yaml, key, required);
-
-    if results.valid  {
-        results.include(validate_list_values(
-            yaml,
-            validation_set,
-            key,
-            required,
-             ));
-    }
-    results
-}
-
-pub fn validate_item_contents(
-    contents: &str,
-    item_validation_sets: &ItemValidationSets,
-) -> Result<ValidationResults, ScanError> {
-
-    let mut results = ValidationResults::new();
-
-    let docs = YamlLoader::load_from_str(contents)?;
-    // YAML files can actually contain multiple files inside, we want the first one
-    let yaml = &docs[0];
-
-    // validate the presence of the keys that all items have
-    results.include(validate_key_exists(&yaml, "Name", true));
-    results.include(validate_key_exists(&yaml, "Item Number", true));
-    results.include(validate_key_exists(&yaml, "Level", true));
-    results.include(validate_list(&yaml,&item_validation_sets.categories, "Category", true));
-    results.include(validate_list(&yaml,&item_validation_sets.classifications, "Classifications", true ));
-    results.include(validate_list(&yaml,&item_validation_sets.elements, "Element", true ));
-    
-    let should_have_synthesis = should_have_synthesis(&yaml);
-
-    results.include(validate_list(&yaml,&item_validation_sets.categories, "Materials", should_have_synthesis));
-    
-    Ok(results)
-}
-
-
-/// if the item has a classification of "Materials", then the item is a gathered item
+/// if the item has a classification of "Materials", then the item is a gathered item. Otherwise,
+/// it's a synthesized item.
 fn should_have_synthesis(yaml: &Yaml) -> bool {
-    
     let value = &yaml["Classifications"];
 
     let no_synthesis_classification = "Materials";
@@ -221,4 +241,42 @@ fn should_have_synthesis(yaml: &Yaml) -> bool {
         }
     }
     has_systhesis_classification
+}
+
+fn validate_synthesis(yaml: &Yaml) -> ValidationResults {
+    let mut results = ValidationResults::new();
+
+    if yaml.is_badvalue() {
+        results
+            .fail_messages
+            .push(format!("Synthesis key is missing."));
+    } else {
+        results.include(validate_key_exists(yaml, "Required Materials", true));
+
+        results.include(validate_synthesis_material_loops(&yaml["Material Loops"]));
+        // prepend validation messages with the Synthesis key
+        results.pass_messages = results
+            .pass_messages
+            .drain(0..)
+            .map(|msg| format!("{}: {}", "Synthesis", msg))
+            .collect();
+        results.fail_messages = results
+            .fail_messages
+            .drain(0..)
+            .map(|msg| format!("{}: {}", "Synthesis", msg))
+            .collect();
+    }
+    results
+}
+
+fn validate_synthesis_material_loops(yaml: &Yaml) -> ValidationResults {
+    let mut results = ValidationResults::new();
+    if yaml.is_badvalue() {
+        results
+            .fail_messages
+            .push(format!("Material Loops key is missing."));
+    } else {
+        //todo
+    }
+    results
 }

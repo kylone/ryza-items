@@ -1,7 +1,6 @@
 mod file_contents;
 mod validate_item;
 
-
 extern crate term;
 
 fn get_item_validation_sets() -> validate_item::ItemValidationSets {
@@ -38,31 +37,28 @@ fn main() {
 
     for file in item_contents {
         println!("Validating {}", file.name);
-        let result = validate_item::validate_item_contents(
-            &file.contents,
-            &item_validation_sets,
-        );
+        let result = validate_item::validate_item_contents(&file.contents, &item_validation_sets);
 
+        // there's a some .unwrap() calls with the term crate
+        // if we can't work with the terminal, just panic
         let mut terminal = term::stdout().unwrap();
         if result.is_err() {
             terminal.fg(term::color::BRIGHT_RED).unwrap();
             println!("unable to validate {}", file.name);
             terminal.reset().unwrap();
-        }
-        else {
+        } else {
             let results = result.unwrap();
             terminal.fg(term::color::BRIGHT_GREEN).unwrap();
-            for msg in results.pass_messages{
+            for msg in results.pass_messages {
                 println!("- {}", msg);
             }
             terminal.reset().unwrap();
 
             terminal.fg(term::color::BRIGHT_RED).unwrap();
-            for msg in results.fail_messages{
+            for msg in results.fail_messages {
                 println!("- {}", msg);
             }
             terminal.reset().unwrap();
         }
-
     }
 }
