@@ -4,7 +4,6 @@ use yaml_rust::{ScanError, Yaml, YamlLoader};
 use std::fmt::Write;
 
 
-use regex::Regex;
 
 pub struct ValidationResults {
     pub valid: bool,
@@ -86,7 +85,7 @@ fn add_to_set(yaml: &Yaml, key: &str, set: &mut HashSet<String>) {
     set.shrink_to_fit();
 }
 
-fn validate_key_exists(yaml: &Yaml, key: &str, optional: bool) -> ValidationResults {
+fn validate_key_exists(yaml: &Yaml, key: &str, required: bool) -> ValidationResults {
     let mut results = ValidationResults::new(); 
 
     let value = &yaml[key];
@@ -95,10 +94,10 @@ fn validate_key_exists(yaml: &Yaml, key: &str, optional: bool) -> ValidationResu
     // if we can't work with the terminal, just panic
 
 
-    if value.is_badvalue() && !optional {
+    if value.is_badvalue() && required {
         results.fail_messages.push(format!("'{}' key is missing", key));
         results.valid = false;
-    } else if !optional {
+    } else if required {
 
         let mut pass_message = String::new();
         write!(&mut pass_message,"{} is present", key ).unwrap();
@@ -114,46 +113,11 @@ fn validate_key_exists(yaml: &Yaml, key: &str, optional: bool) -> ValidationResu
     results
 }
 
-fn _validate_materials(
-    yaml: &Yaml,
-    validation_set: &HashSet<String>,
-    key: &str,
-    only_output_invalid: bool,
-) -> bool {
-    let value = &yaml[key];
-    let mut terminal = term::stdout().unwrap();
-
-    lazy_static! {
-        static ref CATEGORY_REGEX: Regex = Regex::new(r#"\(\w+\)"#).unwrap();
-    }
-    if let Some(list) = value.as_vec() {
-        let mut all_values_valid = true;
-        terminal.fg(term::color::BRIGHT_RED).unwrap();
-        for value in list {
-            if let Some(value) = value.as_str() {
-                if CATEGORY_REGEX.is_match(value) && !validation_set.contains(value) {
-                    all_values_valid = false;
-                    println!("{}: {} is not a valid value", key, value);
-                }
-            }
-        }
-        terminal.reset().unwrap();
-        if all_values_valid && !only_output_invalid {
-            terminal.fg(term::color::BRIGHT_GREEN).unwrap();
-            println!("{} values are valid", key);
-            terminal.reset().unwrap();
-        }
-        true
-    } else {
-        false // not a yaml list (a vector)
-    }
-}
-
 fn validate_list_values(
     yaml: &Yaml,
     validation_set: &HashSet<String>,
     key: &str,
-    optional:bool,
+    required:bool,
 ) -> ValidationResults {
     let mut results = ValidationResults::new();
 
@@ -187,7 +151,7 @@ fn validate_list_values(
         }
         
     } else {
-        if !optional { 
+        if required { 
         results.valid = false; // not a yaml list (a vector)
         results.fail_messages.push(format!("{} is not a list", key));
         }
@@ -198,15 +162,15 @@ fn validate_list_values(
 fn validate_list( yaml: &Yaml,
     validation_set: &HashSet<String>,
     key: &str,
-    optional:bool) -> ValidationResults{
-    let mut results = validate_key_exists(yaml, key, optional);
+    required:bool) -> ValidationResults{
+    let mut results = validate_key_exists(yaml, key, required);
 
     if results.valid  {
         results.include(validate_list_values(
             yaml,
             validation_set,
             key,
-            optional,
+            required,
              ));
     }
     results
@@ -221,15 +185,40 @@ pub fn validate_item_contents(
 
     let docs = YamlLoader::load_from_str(contents)?;
     // YAML files can actually contain multiple files inside, we want the first one
-    let doc = &docs[0];
-    results.include(validate_key_exists(&doc, "Name", false));
-    results.include(validate_key_exists(&doc, "Item Number", false));
-    results.include(validate_key_exists(&doc, "Level", false));
-    results.include(validate_list(&doc,&item_validation_sets.categories, "Category", false));
-    results.include(validate_list(&doc,&item_validation_sets.classifications, "Classifications", false ));
-    results.include(validate_list(&doc,&item_validation_sets.elements, "Element", false ));
+    let yaml = &docs[0];
+
+    // validate the presence of the keys that all items have
+    results.include(validate_key_exists(&yaml, "Name", true));
+    results.include(validate_key_exists(&yaml, "Item Number", true));
+    results.include(validate_key_exists(&yaml, "Level", true));
+    results.include(validate_list(&yaml,&item_validation_sets.categories, "Category", true));
+    results.include(validate_list(&yaml,&item_validation_sets.classifications, "Classifications", true ));
+    results.include(validate_list(&yaml,&item_validation_sets.elements, "Element", true ));
     
-    results.include(validate_list(&doc,&item_validation_sets.categories, "Materials", true));
+    let should_have_synthesis = should_have_synthesis(&yaml);
+
+    results.include(validate_list(&yaml,&item_validation_sets.categories, "Materials", should_have_synthesis));
     
     Ok(results)
+}
+
+
+/// if the item has a classification of "Materials", then the item is a gathered item
+fn should_have_synthesis(yaml: &Yaml) -> bool {
+    
+    let value = &yaml["Classifications"];
+
+    let no_synthesis_classification = "Materials";
+    let mut has_systhesis_classification = true;
+
+    if let Some(list) = value.as_vec() {
+        for value in list {
+            if let Some(value) = value.as_str() {
+                if value == no_synthesis_classification {
+                    has_systhesis_classification = false
+                }
+            }
+        }
+    }
+    has_systhesis_classification
 }
