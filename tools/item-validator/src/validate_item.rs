@@ -118,7 +118,7 @@ pub fn validate_item_contents(
         true,
     ));
 
-    let synthesis_required = should_have_synthesis(&yaml);
+    let synthesis_required = synthesis::should_have_synthesis(&yaml);
 
     results.include(validate_list(
         &yaml,
@@ -127,7 +127,7 @@ pub fn validate_item_contents(
         synthesis_required,
     ));
     if synthesis_required {
-        results.include(validate_synthesis(&yaml["Synthesis"]));
+        results.include(synthesis::validate_synthesis(&yaml["Synthesis"]));
     }
     Ok(results)
 }
@@ -223,60 +223,67 @@ fn validate_list_values(
     results
 }
 
-/// if the item has a classification of "Materials", then the item is a gathered item. Otherwise,
-/// it's a synthesized item.
-fn should_have_synthesis(yaml: &Yaml) -> bool {
-    let value = &yaml["Classifications"];
+/// the synthesis part of validation is complex enough to warrant its own module
+mod synthesis {
+    use crate::validate_item::validate_key_exists;
+    use crate::validate_item::ValidationResults;
+    use yaml_rust::Yaml;
 
-    let no_synthesis_classification = "Materials";
-    let mut has_systhesis_classification = true;
+    /// if the item has a classification of "Materials", then the item is a gathered item. Otherwise,
+    /// it's a synthesized item.
+    pub fn should_have_synthesis(yaml: &Yaml) -> bool {
+        let value = &yaml["Classifications"];
 
-    if let Some(list) = value.as_vec() {
-        for value in list {
-            if let Some(value) = value.as_str() {
-                if value == no_synthesis_classification {
-                    has_systhesis_classification = false
+        let no_synthesis_classification = "Materials";
+        let mut has_systhesis_classification = true;
+
+        if let Some(list) = value.as_vec() {
+            for value in list {
+                if let Some(value) = value.as_str() {
+                    if value == no_synthesis_classification {
+                        has_systhesis_classification = false
+                    }
                 }
             }
         }
+        has_systhesis_classification
     }
-    has_systhesis_classification
-}
 
-fn validate_synthesis(yaml: &Yaml) -> ValidationResults {
-    let mut results = ValidationResults::new();
+    pub fn validate_synthesis(yaml: &Yaml) -> ValidationResults {
+        let mut results = ValidationResults::new();
 
-    if yaml.is_badvalue() {
+        if yaml.is_badvalue() {
+            results
+                .fail_messages
+                .push(format!("Synthesis key is missing."));
+        } else {
+            results.include(validate_key_exists(yaml, "Required Materials", true));
+            results.include(validate_synthesis_material_loops(&yaml["Material Loops"]));
+            
+            // prepend validation messages with the Synthesis key
+            results.pass_messages = results
+                .pass_messages
+                .drain(0..)
+                .map(|msg| format!("{}: {}", "Synthesis", msg))
+                .collect();
+            results.fail_messages = results
+                .fail_messages
+                .drain(0..)
+                .map(|msg| format!("{}: {}", "Synthesis", msg))
+                .collect();
+        }
         results
-            .fail_messages
-            .push(format!("Synthesis key is missing."));
-    } else {
-        results.include(validate_key_exists(yaml, "Required Materials", true));
-
-        results.include(validate_synthesis_material_loops(&yaml["Material Loops"]));
-        // prepend validation messages with the Synthesis key
-        results.pass_messages = results
-            .pass_messages
-            .drain(0..)
-            .map(|msg| format!("{}: {}", "Synthesis", msg))
-            .collect();
-        results.fail_messages = results
-            .fail_messages
-            .drain(0..)
-            .map(|msg| format!("{}: {}", "Synthesis", msg))
-            .collect();
     }
-    results
-}
 
-fn validate_synthesis_material_loops(yaml: &Yaml) -> ValidationResults {
-    let mut results = ValidationResults::new();
-    if yaml.is_badvalue() {
+    fn validate_synthesis_material_loops(yaml: &Yaml) -> ValidationResults {
+        let mut results = ValidationResults::new();
+        if yaml.is_badvalue() {
+            results
+                .fail_messages
+                .push(format!("Material Loops key is missing."));
+        } else {
+            //todo
+        }
         results
-            .fail_messages
-            .push(format!("Material Loops key is missing."));
-    } else {
-        //todo
     }
-    results
 }
