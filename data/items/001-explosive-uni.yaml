@@ -21,91 +21,104 @@ Synthesis:
     - Effect 1:
         Distance: 0
         Position: 0
-        Material: (Uni)
-        Element: Lightning
-        Loops:
+        Material: 
+        - (Uni)
+        Levels:
         - Scatter: 
-            Element Value: 3
+            Element:
+            - Lightning: 3
         - Explosive:
-            Element Value: 5
+            Element:
+            - Lightning: 5
     - Effect 2:
         Distance: 1
         Position: 1
         Linked From Position: 0
-        Material: (Gunpowder)
-        Element: Fire
-        Meterial Loops:
+        Material: 
+        - (Gunpowder)
+        Levels:
         - Uni Spike S:
-            Element Value: 1
+            Element:
+            - Fire: 1
         - Uni Spike M:
-            Element Value: 2
+            Element:
+            - Fire: 2
     - Effect 3:
         Distance: 1
         Position: 2
         Linked From Position: 0
-        Material: (Fuel)
-        Element: Fire
-        Material Loops:
+        Material: 
+        - (Fuel)
+        Levels:
         - Surprise! S:
-            Element Value: 1
+            Element:
+            - Fire: 1
         - Surprise! M:
-            Element Value: 2
+            Element:
+            - Fire: 2
     - Traits:
         Distance: 2
-        Position 3:
+        Position: 3
         Linked From Position: 1
-        Material: (Fuel)
-        Element: Fire
-        Material Loops:
+        Material: 
+        - (Fuel)
+        Levels:
         - Trait Slot:
-            Element Value: 1
+            Element:
+            - Fire: 1
         - Trait Slot:
-            Element Value: 2
+            Element:
+            - Fire: 2
         - Trait Slot:
-            Element Value: 3
+            Element:
+            - Fire: 3
     - Effect 2:
         Distance: 2
         Position: 4
         Linked From Position: 1
-        Material: (Gunpowder)
-        Element: Ice
-        Meterial Loops:
+        Material: 
+        - (Gunpowder)
+        Levels:
         - Uni Spike L: 
-            Element Value: 4
+            Element:
+            - Ice: 4
         Unlock:
         - Fire: 3
     - Recipe:
         Distance: 2
         Position: 5
         Linked From Position: 1
-        Material: Red Supplement
-        Element: Fire
-        Material Loops:
+        Material: 
+        - Red Supplement
+        Levels:
         - Recipe Morph:
             Recipe: Craft
             Required Alchemy Level: 4
-            Element Value: 2
+            Element:
+            - Fire: 2
         Unlock:
         Fire: 2
     - Effect 3:
         Distance: 2
         Position: 6
         Linked From Position: 2
-        Material: (Gunpowder)
-        Element: Wind
-        Material Loops:
+        Material: 
+        - (Gunpowder)
+        Levels:
         - Surprise! L:
-            Element Value: 2
+            Element:
+            - Wind: 2
     - Recipe:
         Distance: 2
         Position: 7
         Linked From Position: 2
-        Material: Blue Supplement
-        Element: Ice
-        Material Loops:
+        Material: 
+        - Blue Supplement
+        Levels:
         - Recipe Morph:
             Recipe: Ice Caltrop
             Required Alchemy Level: 4
-            Element Value: 2
+            Element:
+            - Ice: 2
         Unlock:
-        Wind: 1
+        - Wind: 1

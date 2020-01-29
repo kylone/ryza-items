@@ -37,6 +37,7 @@ pub struct ItemValidationSets {
     pub categories: HashSet<String>,
     pub classifications: HashSet<String>,
     pub gathering_tools: HashSet<String>,
+    pub materials: HashSet<String>,
 }
 
 impl ItemValidationSets {
@@ -46,6 +47,7 @@ impl ItemValidationSets {
             categories: HashSet::new(),
             classifications: HashSet::new(),
             gathering_tools: HashSet::new(),
+            materials: HashSet::new(),
         }
     }
 }
@@ -56,6 +58,7 @@ pub fn build_item_validation_sets(contents: &str) -> Result<ItemValidationSets, 
     let doc = &docs[0];
     let mut validation_sets = ItemValidationSets::new();
     add_to_set(&doc, "Item Categories", &mut validation_sets.categories);
+    add_to_set(&doc, "Item Categories", &mut validation_sets.materials);
     add_to_set(
         &doc,
         "Item Classifications",
@@ -122,12 +125,15 @@ pub fn validate_item_contents(
 
     results.include(validate_list(
         &yaml,
-        &item_validation_sets.categories,
+        &item_validation_sets.materials,
         "Materials",
         synthesis_required,
     ));
     if synthesis_required {
-        results.include(synthesis::validate_synthesis(&yaml["Synthesis"]));
+        results.include(synthesis::validate_synthesis(
+            &yaml["Synthesis"],
+            item_validation_sets,
+        ));
     }
     Ok(results)
 }
@@ -153,7 +159,7 @@ fn validate_key_exists(yaml: &Yaml, key: &str, required: bool) -> ValidationResu
             write!(&mut pass_message, ": {}", value).unwrap();
         }
         results.pass_messages.push(pass_message);
-        true; // validation successful
+        results.valid = true;
     }
     results
 }
@@ -214,19 +220,19 @@ fn validate_list_values(
                 .pass_messages
                 .push(format!("{} values are valid", key));
         }
-    } else {
-        if required {
-            results.valid = false; // not a yaml list (a vector)
-            results.fail_messages.push(format!("{} is not a list", key));
-        }
+    } else if required {
+        results.valid = false; // not a yaml list (a vector)
+        results.fail_messages.push(format!("{} is not a list", key));
     }
+
     results
 }
 
 /// the synthesis part of validation is complex enough to warrant its own module
 mod synthesis {
-    use crate::validate_item::validate_key_exists;
-    use crate::validate_item::ValidationResults;
+    use crate::validate_item::{validate_key_exists, validate_list};
+    use crate::validate_item::{ItemValidationSets, ValidationResults};
+    use std::collections::HashSet;
     use yaml_rust::Yaml;
 
     /// if the item has a classification of "Materials", then the item is a gathered item. Otherwise,
@@ -249,17 +255,23 @@ mod synthesis {
         has_systhesis_classification
     }
 
-    pub fn validate_synthesis(yaml: &Yaml) -> ValidationResults {
+    pub fn validate_synthesis(
+        yaml: &Yaml,
+        item_validation_sets: &ItemValidationSets,
+    ) -> ValidationResults {
         let mut results = ValidationResults::new();
 
         if yaml.is_badvalue() {
             results
                 .fail_messages
-                .push(format!("Synthesis key is missing."));
+                .push("Synthesis key is missing.".to_string());
         } else {
             results.include(validate_key_exists(yaml, "Required Materials", true));
-            results.include(validate_synthesis_material_loops(&yaml["Material Loops"]));
-            
+            results.include(validate_material_loops(
+                &yaml["Material Loops"],
+                item_validation_sets,
+            ));
+
             // prepend validation messages with the Synthesis key
             results.pass_messages = results
                 .pass_messages
@@ -275,14 +287,105 @@ mod synthesis {
         results
     }
 
-    fn validate_synthesis_material_loops(yaml: &Yaml) -> ValidationResults {
+    fn validate_material_loops(
+        yaml: &Yaml,
+        item_validation_sets: &ItemValidationSets,
+    ) -> ValidationResults {
         let mut results = ValidationResults::new();
         if yaml.is_badvalue() {
             results
                 .fail_messages
-                .push(format!("Material Loops key is missing."));
+                .push("Material Loops key is missing.".to_string());
+        } else if let Some(material_loops) = yaml.as_vec() {
+            // check to see if position values are unique
+            results.include(validate_unique_positions(material_loops));
+            for material_loop in material_loops {
+                results.include(validate_material_loop_contents(
+                    material_loop,
+                    item_validation_sets,
+                ));
+            }
+        }
+        results
+    }
+
+    /// validate if position values are unique for each material loop
+    fn validate_unique_positions(material_loops: &[Yaml]) -> ValidationResults {
+        let mut results = ValidationResults::new();
+        let mut position_set = HashSet::new();
+        for material_loop in material_loops {
+            if let Some(material_loop_hash) = material_loop.as_hash() {
+                for (name, details) in material_loop_hash {
+                    if let Some(name) = name.as_str() {
+                        let position = &details["Position"];
+                        if position.is_badvalue() {
+                            results
+                                .fail_messages
+                                .push(format!("loop '{}' is missing position", name));
+                        } else if let Some(position) = position.as_i64() {
+                            if position_set.contains(&position) {
+                                results.fail_messages.push(format!(
+                                    "loop '{}' has duplicate position value: {}",
+                                    name, position
+                                ));
+                            } else {
+                                results.pass_messages.push(format!(
+                                    "loop '{}' has new position value: {}",
+                                    name, position
+                                ));
+                                position_set.insert(position);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        results
+    }
+
+    fn validate_material_loop_contents(
+        yaml: &Yaml,
+        item_validation_sets: &ItemValidationSets,
+    ) -> ValidationResults {
+        let mut results = ValidationResults::new();
+
+        if let Some(material_loop_hash) = yaml.as_hash() {
+            for (name, details) in material_loop_hash {
+                results.include(validate_key_exists(details, "Distance", true));
+                results.include(validate_key_exists(details, "Position", true));
+                // consider changing from list of 1 to validate key and value
+                results.include(validate_list(
+                    details,
+                    &item_validation_sets.materials,
+                    "Material",
+                    true,
+                ));
+                results.include(validate_key_exists(details, "Linked From Position", false));
+                results.include(validate_list(
+                    details,
+                    &item_validation_sets.elements,
+                    "Unlock",
+                    false,
+                ));
+                // to do: validate loop levels
+                // prepend validation messages with the Synthesis key
+                if let Some(name) = name.as_str() {
+                    results.pass_messages = results
+                        .pass_messages
+                        .drain(0..)
+                        .map(|msg| format!("{}: {}", name, msg))
+                        .collect();
+                    results.fail_messages = results
+                        .fail_messages
+                        .drain(0..)
+                        .map(|msg| format!("{}: {}", name, msg))
+                        .collect();
+                }
+            }
         } else {
-            //todo
+            results
+                .fail_messages
+                .push("Malformed material loop".to_string());
         }
         results
     }
