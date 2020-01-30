@@ -255,7 +255,7 @@ mod synthesis {
                 item_validation_sets,
             ));
 
-            // prepend validation messages with the Synthesis key
+            // prefix validation messages with the Synthesis key
             results.pass_messages = results
                 .pass_messages
                 .drain(0..)
@@ -356,7 +356,7 @@ mod synthesis {
                     &item_validation_sets,
                 ));
 
-                // prepend validation messages with the Synthesis key
+                // prefix validation messages with the material loop name/type
                 if let Yaml::String(name) = name {
                     results.pass_messages = results
                         .pass_messages
@@ -402,7 +402,7 @@ mod synthesis {
                                 is_recipe_morph,
                             ));
 
-                            // prepend validation messages with the loop effect
+                            // prefix validation messages with the loop effect name
                             results.pass_messages = results
                                 .pass_messages
                                 .drain(0..)
