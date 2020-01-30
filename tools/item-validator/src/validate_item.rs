@@ -1,6 +1,5 @@
 extern crate yaml_rust;
 use std::collections::HashSet;
-use std::fmt::Write;
 use yaml_rust::{ScanError, Yaml, YamlLoader};
 
 pub struct ValidationResults {
@@ -76,9 +75,9 @@ pub fn build_item_validation_sets(contents: &str) -> Result<ItemValidationSets, 
 fn add_to_set(yaml: &Yaml, key: &str, set: &mut HashSet<String>) {
     let value = &yaml[key];
 
-    if let Some(list) = value.as_vec() {
+    if let Yaml::Array(list) = value {
         for value in list {
-            if let Some(value) = value.as_str() {
+            if let Yaml::String(value) = value {
                 set.insert(value.to_string());
             }
         }
@@ -138,7 +137,8 @@ pub fn validate_item_contents(
     Ok(results)
 }
 
-/// check to see if a particular key is a child of the given yaml position
+/// Check to see if a particular key is a child of the given yaml position
+/// (if the key isn't required, it's absence goes unremarked)
 fn validate_key_exists(yaml: &Yaml, key: &str, required: bool) -> ValidationResults {
     let mut results = ValidationResults::new();
 
@@ -150,14 +150,12 @@ fn validate_key_exists(yaml: &Yaml, key: &str, required: bool) -> ValidationResu
             .push(format!("'{}' key is missing", key));
         results.valid = false;
     } else if required {
-        let mut pass_message = String::new();
-        write!(&mut pass_message, "{} is present", key).unwrap();
-
-        if let Some(value) = value.as_str() {
-            write!(&mut pass_message, ": {}", value).unwrap();
-        } else if let Some(value) = value.as_i64() {
-            write!(&mut pass_message, ": {}", value).unwrap();
-        }
+        let value_message = match value {
+            Yaml::String(value) => format!(": {}", value),
+            Yaml::Integer(value) => format!(": {}", value),
+            _ => "".to_string(),
+        };
+        let pass_message = format!("{} is present{}", key, value_message);
         results.pass_messages.push(pass_message);
         results.valid = true;
     }
@@ -190,10 +188,10 @@ fn validate_list_values(
 
     let value = &yaml[key];
 
-    if let Some(list) = value.as_vec() {
+    if let Yaml::Array(list) = value {
         results.valid = true;
         for value in list {
-            if let Some(value) = value.as_str() {
+            if let Yaml::String(value) = value {
                 if !validation_set.contains(value) {
                     results.valid = false;
                     results
@@ -201,9 +199,9 @@ fn validate_list_values(
                         .push(format!("{}: {} is not a valid value", key, value));
                 }
             }
-            if let Some(value) = value.as_hash() {
+            if let Yaml::Hash(value) = value {
                 for (hash_key, _) in value {
-                    if let Some(hash_key) = hash_key.as_str() {
+                    if let Yaml::String(hash_key) = hash_key {
                         if !validation_set.contains(hash_key) {
                             results.valid = false;
                             results
@@ -243,9 +241,9 @@ mod synthesis {
         let no_synthesis_classification = "Materials";
         let mut has_systhesis_classification = true;
 
-        if let Some(list) = value.as_vec() {
+        if let Yaml::Array(list) = value {
             for value in list {
-                if let Some(value) = value.as_str() {
+                if let Yaml::String(value) = value {
                     if value == no_synthesis_classification {
                         has_systhesis_classification = false
                     }
@@ -271,7 +269,7 @@ mod synthesis {
                 &yaml["Material Loops"],
                 item_validation_sets,
             ));
-
+                
             // prepend validation messages with the Synthesis key
             results.pass_messages = results
                 .pass_messages
@@ -296,7 +294,7 @@ mod synthesis {
             results
                 .fail_messages
                 .push("Material Loops key is missing.".to_string());
-        } else if let Some(material_loops) = yaml.as_vec() {
+        } else if let Yaml::Array(material_loops) = yaml {
             // check to see if position values are unique
             results.include(validate_unique_positions(material_loops));
             for material_loop in material_loops {
@@ -314,28 +312,29 @@ mod synthesis {
         let mut results = ValidationResults::new();
         let mut position_set = HashSet::new();
         for material_loop in material_loops {
-            if let Some(material_loop_hash) = material_loop.as_hash() {
+            if let Yaml::Hash(material_loop_hash) = material_loop {
                 for (name, details) in material_loop_hash {
-                    if let Some(name) = name.as_str() {
-                        let position = &details["Position"];
-                        if position.is_badvalue() {
-                            results
+                    if let Yaml::String(name) = name {
+                        match &details["Position"] {
+                            Yaml::BadValue => results
                                 .fail_messages
-                                .push(format!("loop '{}' is missing position", name));
-                        } else if let Some(position) = position.as_i64() {
-                            if position_set.contains(&position) {
-                                results.fail_messages.push(format!(
-                                    "loop '{}' has duplicate position value: {}",
-                                    name, position
-                                ));
-                            } else {
-                                results.pass_messages.push(format!(
-                                    "loop '{}' has new position value: {}",
-                                    name, position
-                                ));
-                                position_set.insert(position);
+                                .push(format!("loop '{}' is missing position", name)),
+                            Yaml::Integer(position) => {
+                                if position_set.contains(&position) {
+                                    results.fail_messages.push(format!(
+                                        "loop '{}' has duplicate position value: {}",
+                                        name, position
+                                    ));
+                                } else {
+                                    results.pass_messages.push(format!(
+                                        "loop '{}' has new position value: {}",
+                                        name, position
+                                    ));
+                                    position_set.insert(position);
+                                }
                             }
-                        }
+                            _ => {}
+                        };
                     }
                 }
             }
@@ -349,7 +348,7 @@ mod synthesis {
     ) -> ValidationResults {
         let mut results = ValidationResults::new();
 
-        if let Some(material_loop_hash) = yaml.as_hash() {
+        if let Yaml::Hash(material_loop_hash) = yaml {
             for (name, details) in material_loop_hash {
                 results.include(validate_key_exists(details, "Distance", true));
                 results.include(validate_key_exists(details, "Position", true));
@@ -368,8 +367,9 @@ mod synthesis {
                     false,
                 ));
                 // to do: validate loop levels
+
                 // prepend validation messages with the Synthesis key
-                if let Some(name) = name.as_str() {
+                if let Yaml::String(name) = name {
                     results.pass_messages = results
                         .pass_messages
                         .drain(0..)
