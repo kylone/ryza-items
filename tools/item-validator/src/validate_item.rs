@@ -269,7 +269,7 @@ mod synthesis {
                 &yaml["Material Loops"],
                 item_validation_sets,
             ));
-                
+
             // prepend validation messages with the Synthesis key
             results.pass_messages = results
                 .pass_messages
@@ -366,7 +366,10 @@ mod synthesis {
                     "Unlock",
                     false,
                 ));
-                // to do: validate loop levels
+                results.include(validate_loop_levels(
+                    &details["Levels"],
+                    &item_validation_sets,
+                ));
 
                 // prepend validation messages with the Synthesis key
                 if let Yaml::String(name) = name {
@@ -386,6 +389,53 @@ mod synthesis {
             results
                 .fail_messages
                 .push("Malformed material loop".to_string());
+        }
+        results
+    }
+
+    fn validate_loop_levels(
+        yaml: &Yaml,
+        item_validation_sets: &ItemValidationSets,
+    ) -> ValidationResults {
+        let mut results = ValidationResults::new();
+        if let Yaml::Array(level_vec) = yaml {
+            for level in level_vec {
+                if let Yaml::Hash(level_hash) = level {
+                    for (loop_effect, details) in level_hash {
+                        if let Yaml::String(loop_effect) = loop_effect {
+                            results.include(validate_list(
+                                &details,
+                                &item_validation_sets.elements,
+                                "Element",
+                                true,
+                            ));
+                            let is_recipe_morph = loop_effect == "Recipe Morph";
+                            results.include(validate_key_exists(
+                                &details,
+                                "Required Alchemy Level",
+                                is_recipe_morph,
+                            ));
+                            results.include(validate_key_exists(
+                                &details,
+                                "Recipe",
+                                is_recipe_morph,
+                            ));
+
+                            // prepend validation messages with the loop effect
+                            results.pass_messages = results
+                                .pass_messages
+                                .drain(0..)
+                                .map(|msg| format!("{}: {}", loop_effect, msg))
+                                .collect();
+                            results.fail_messages = results
+                                .fail_messages
+                                .drain(0..)
+                                .map(|msg| format!("{}: {}", loop_effect, msg))
+                                .collect();
+                        }
+                    }
+                }
+            }
         }
         results
     }

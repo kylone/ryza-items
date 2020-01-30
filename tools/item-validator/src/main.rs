@@ -30,7 +30,7 @@ fn get_item_validation_sets() -> validate_item::ItemValidationSets {
 }
 
 fn main() {
-    let show_success_messages = false;
+    let verbose = true;
 
     let item_validation_sets = get_item_validation_sets();
 
@@ -46,7 +46,7 @@ fn main() {
         let mut terminal = term::stdout().unwrap();
         if let Ok(results) = result {
             // display results
-            if show_success_messages {
+            if verbose {
                 terminal.fg(term::color::BRIGHT_GREEN).unwrap();
                 for msg in results.pass_messages {
                     println!("- {}", msg);
