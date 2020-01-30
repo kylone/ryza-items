@@ -98,25 +98,25 @@ pub fn validate_item_contents(
     let yaml = &docs[0];
 
     // validate the presence of the keys that all items have
-    results.include(validate_key_exists(&yaml, "Name", true));
-    results.include(validate_key_exists(&yaml, "Item Number", true));
-    results.include(validate_key_exists(&yaml, "Level", true));
+    results.include(validate_key(&yaml, "Name", true));
+    results.include(validate_key(&yaml, "Item Number", true));
+    results.include(validate_key(&yaml, "Level", true));
     results.include(validate_list(
         &yaml,
-        &item_validation_sets.categories,
         "Category",
+        &item_validation_sets.categories,
         true,
     ));
     results.include(validate_list(
         &yaml,
-        &item_validation_sets.classifications,
         "Classifications",
+        &item_validation_sets.classifications,
         true,
     ));
     results.include(validate_list(
         &yaml,
-        &item_validation_sets.elements,
         "Element",
+        &item_validation_sets.elements,
         true,
     ));
 
@@ -124,8 +124,8 @@ pub fn validate_item_contents(
 
     results.include(validate_list(
         &yaml,
-        &item_validation_sets.materials,
         "Materials",
+        &item_validation_sets.materials,
         synthesis_required,
     ));
     if synthesis_required {
@@ -139,7 +139,7 @@ pub fn validate_item_contents(
 
 /// Check to see if a particular key is a child of the given yaml position
 /// (if the key isn't required, it's absence goes unremarked)
-fn validate_key_exists(yaml: &Yaml, key: &str, required: bool) -> ValidationResults {
+fn validate_key(yaml: &Yaml, key: &str, required: bool) -> ValidationResults {
     let mut results = ValidationResults::new();
 
     let value = &yaml[key];
@@ -162,17 +162,47 @@ fn validate_key_exists(yaml: &Yaml, key: &str, required: bool) -> ValidationResu
     results
 }
 
+/// Check to see if a particular key is a child of the given yaml position
+/// (if the key isn't required, it's absence goes unremarked)
+fn validate_key_and_value(yaml: &Yaml, key: &str, validation_set: &HashSet<String>,  required: bool) -> ValidationResults {
+    let mut results = ValidationResults::new();
+
+    let value = &yaml[key];
+
+    if value.is_badvalue() && required {
+        results
+            .fail_messages
+            .push(format!("'{}' key is missing", key));
+        results.valid = false;
+    } else if required {
+        match value {
+            Yaml::String(value) => {
+                if validation_set.contains(value){
+                    results.pass_messages.push(format!("key {}: {} is a valid value", key, value));
+                } else {
+                    results.fail_messages.push(format!("key {}: {} is not a valid value", key, value));
+                }
+            },
+            _ => {},
+        };
+        let pass_message = format!("{} is present", key);
+        results.pass_messages.push(pass_message);
+        results.valid = true;
+    }
+    results
+}
+
 /// top level method for validating a list of the given YAML position
 fn validate_list(
     yaml: &Yaml,
-    validation_set: &HashSet<String>,
     key: &str,
+    validation_set: &HashSet<String>,
     required: bool,
 ) -> ValidationResults {
-    let mut results = validate_key_exists(yaml, key, required);
+    let mut results = validate_key(yaml, key, required);
 
     if results.valid {
-        results.include(validate_list_values(yaml, validation_set, key, required));
+        results.include(validate_list_values(yaml, key, validation_set, required));
     }
     results
 }
@@ -180,8 +210,8 @@ fn validate_list(
 /// validate a list of the given key with a given set of allowed values
 fn validate_list_values(
     yaml: &Yaml,
-    validation_set: &HashSet<String>,
     key: &str,
+    validation_set: &HashSet<String>,
     required: bool,
 ) -> ValidationResults {
     let mut results = ValidationResults::new();
@@ -228,7 +258,7 @@ fn validate_list_values(
 
 /// the synthesis part of validation is complex enough to warrant its own module
 mod synthesis {
-    use crate::validate_item::{validate_key_exists, validate_list};
+    use crate::validate_item::{validate_key, validate_key_and_value, validate_list};
     use crate::validate_item::{ItemValidationSets, ValidationResults};
     use std::collections::HashSet;
     use yaml_rust::Yaml;
@@ -264,7 +294,7 @@ mod synthesis {
                 .fail_messages
                 .push("Synthesis key is missing.".to_string());
         } else {
-            results.include(validate_key_exists(yaml, "Required Materials", true));
+            results.include(validate_key(yaml, "Required Materials", true));
             results.include(validate_material_loops(
                 &yaml["Material Loops"],
                 item_validation_sets,
@@ -350,20 +380,20 @@ mod synthesis {
 
         if let Yaml::Hash(material_loop_hash) = yaml {
             for (name, details) in material_loop_hash {
-                results.include(validate_key_exists(details, "Distance", true));
-                results.include(validate_key_exists(details, "Position", true));
+                results.include(validate_key(details, "Distance", true));
+                results.include(validate_key(details, "Position", true));
                 // consider changing from list of 1 to validate key and value
-                results.include(validate_list(
+                results.include(validate_key_and_value(
                     details,
-                    &item_validation_sets.materials,
                     "Material",
+                    &item_validation_sets.materials,
                     true,
                 ));
-                results.include(validate_key_exists(details, "Linked From Position", false));
+                results.include(validate_key(details, "Linked From Position", false));
                 results.include(validate_list(
                     details,
-                    &item_validation_sets.elements,
                     "Unlock",
+                    &item_validation_sets.elements,
                     false,
                 ));
                 results.include(validate_loop_levels(
@@ -405,19 +435,20 @@ mod synthesis {
                         if let Yaml::String(loop_effect) = loop_effect {
                             results.include(validate_list(
                                 &details,
-                                &item_validation_sets.elements,
                                 "Element",
+                                &item_validation_sets.elements,
                                 true,
                             ));
                             let is_recipe_morph = loop_effect == "Recipe Morph";
-                            results.include(validate_key_exists(
+                            results.include(validate_key(
                                 &details,
                                 "Required Alchemy Level",
                                 is_recipe_morph,
                             ));
-                            results.include(validate_key_exists(
+                            results.include(validate_key_and_value(
                                 &details,
                                 "Recipe",
+                                &item_validation_sets.materials,
                                 is_recipe_morph,
                             ));
 

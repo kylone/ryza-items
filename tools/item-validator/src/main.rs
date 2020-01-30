@@ -1,3 +1,5 @@
+use std::env;
+
 mod file_contents;
 mod validate_item;
 
@@ -30,7 +32,9 @@ fn get_item_validation_sets() -> validate_item::ItemValidationSets {
 }
 
 fn main() {
-    let verbose = true;
+    let args: Vec<String> = env::args().collect();
+    println!("{:?}", args);
+    let verbose = args.contains(&"verbose".to_string());
 
     let item_validation_sets = get_item_validation_sets();
 
