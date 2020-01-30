@@ -129,9 +129,9 @@ fn validate_key_and_value(yaml: &Yaml, key: &str, validation_set: &HashSet<Strin
         match value {
             Yaml::String(value) => {
                 if validation_set.contains(value){
-                    results.pass_messages.push(format!("key {}: {} is a valid value", key, value));
+                    results.pass_messages.push(format!("key {}: {} is a known value", key, value));
                 } else {
-                    results.fail_messages.push(format!("key {}: {} is not a valid value", key, value));
+                    results.fail_messages.push(format!("key {}: {} is an unknown value", key, value));
                 }
             },
             _ => {},
@@ -177,7 +177,7 @@ fn validate_list_values(
                     results.valid = false;
                     results
                         .fail_messages
-                        .push(format!("{}: {} is not a valid value", key, value));
+                        .push(format!("{}: {} is an unknown value", key, value));
                 }
             }
             if let Yaml::Hash(value) = value {
@@ -187,7 +187,7 @@ fn validate_list_values(
                             results.valid = false;
                             results
                                 .fail_messages
-                                .push(format!("{}: {} is not a valid value", key, hash_key));
+                                .push(format!("{}: {} is an unknown value", key, hash_key));
                         }
                     }
                 }
@@ -197,7 +197,7 @@ fn validate_list_values(
         if results.valid {
             results
                 .pass_messages
-                .push(format!("{} values are valid", key));
+                .push(format!("{} values are known", key));
         }
     } else if required {
         results.valid = false; // not a yaml list (a vector)
