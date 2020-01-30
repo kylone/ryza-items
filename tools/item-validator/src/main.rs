@@ -29,7 +29,7 @@ fn main() {
     let item_validation_sets = get_item_validation_sets(&settings.data_folder);
 
     let mut item_contents: Vec<file_contents::FileContents> = Vec::new();
-    let item_dir_path = format!("{}/items/", settings.data_folder);
+    let item_dir_path = format!("{}/items", settings.data_folder);
     file_contents::load_directory(&mut item_contents, &item_dir_path).unwrap();
 
     for file in item_contents {
