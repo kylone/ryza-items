@@ -17,6 +17,7 @@ Materials:
 - (Fuel)
 Synthesis:
   Required Materials: 2
+  Required Alchemy Level: 2
   Material Loops:
     - Effect 1:
         Distance: 0
@@ -87,7 +88,6 @@ Synthesis:
         Levels:
         - Recipe Morph:
             Recipe: Craft
-            Required Alchemy Level: 4
             Element:
             - Fire: 2
         Unlock:
@@ -109,7 +109,6 @@ Synthesis:
         Levels:
         - Recipe Morph:
             Recipe: Ice Caltrop
-            Required Alchemy Level: 4
             Element:
             - Ice: 2
         Unlock:

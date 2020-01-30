@@ -246,7 +246,11 @@ mod synthesis {
                 .push("Synthesis key is missing.".to_string());
         } else {
             results.include(validate_key(yaml, "Required Materials", true));
-            results.include(validate_material_loops(
+            results.include(validate_key(
+                &yaml,
+                "Required Alchemy Level",
+                true,
+            ));            results.include(validate_material_loops(
                 &yaml["Material Loops"],
                 item_validation_sets,
             ));
@@ -391,11 +395,6 @@ mod synthesis {
                                 true,
                             ));
                             let is_recipe_morph = loop_effect == "Recipe Morph";
-                            results.include(validate_key(
-                                &details,
-                                "Required Alchemy Level",
-                                is_recipe_morph,
-                            ));
                             results.include(validate_key_and_value(
                                 &details,
                                 "Recipe",

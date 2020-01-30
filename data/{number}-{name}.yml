@@ -1,22 +1,16 @@
 ---
 Name:                    # the name of the item
-
 Item Number:             # the item number listed in the game (mainly here to keep things organized)
-
 Level:                   # the (minimum) level of the item
-
 Classifications:         # the menus that the item can be found / used in
-
 Category:                # the categories of the item (does not include Add(...) Material Loops) 
-
 Element:                 # the elements of the item (does not include Add(...) Material Loops)  
-
 Gather Locations:        # where the items can be found (only for non-synthesized items)
-
 Gathering Tools:         # the gathering tools used to collect items (only for non-synthesized items)
 
 Synthesis:               # synthesis details (only for synthesized items)
   Required Materials:    # the minimum number of materials needed to synthesize the item
+  Required Alchemy Level: #  the required alchemist level needed to synthesize the item 
   Material Loops:        # a list of material loops for the item
     - Name:              # what the loop adds to the item (e.g. Effect 1)
         Distance:        # how many links it takes to get to the loop (starting loop is 0)
@@ -26,5 +20,4 @@ Synthesis:               # synthesis details (only for synthesized items)
         Levels:          # the levels of effects that the loop can add to the synthesis
         - Scatter:       # the name/type of effect 
             Element:     # the element and value needed to get the effect
-            Recipe:      # (only recipe morph effect) the recipe that the synthesys will change to
-            Required Alchemy Level: # (only recipe morph effect) the required alchemist level needed for the item 
+            Recipe:      # (only recipe morph effect) the recipe that the synthesis will change to
