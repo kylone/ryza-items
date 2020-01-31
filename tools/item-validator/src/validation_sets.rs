@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 extern crate yaml_rust;
-use yaml_rust::{ScanError, Yaml, YamlLoader};
 use crate::file_contents::FileContents;
+use yaml_rust::{ScanError, Yaml, YamlLoader};
 
 pub struct ItemValidationSets {
     pub elements: HashSet<String>,
@@ -59,15 +59,14 @@ fn add_to_set(yaml: &Yaml, key: &str, set: &mut HashSet<String>) {
 }
 
 pub fn add_materials_to_validation_sets(
-    item_validation_sets: &mut ItemValidationSets, 
+    item_validation_sets: &mut ItemValidationSets,
     item_contents: &Vec<FileContents>,
-) -> Result<(),ScanError>
-{
-    for file in item_contents{
+) -> Result<(), ScanError> {
+    for file in item_contents {
         let docs = YamlLoader::load_from_str(&file.contents)?;
         // YAML files can actually contain multiple files inside, we want the first one
         let yaml = &docs[0];
-        if let Yaml::String(material) = &yaml["Name"]{
+        if let Yaml::String(material) = &yaml["Name"] {
             item_validation_sets.materials.insert(material.to_string());
         }
     }

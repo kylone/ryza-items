@@ -34,8 +34,6 @@ impl ValidationResults {
     }
 }
 
-
-
 /// top level validation function for an item, returns ValidationResults, which contains a flag
 /// for whether the item is valid or not, and lists of pass and fail messages
 pub fn validate_item_contents(
@@ -115,7 +113,12 @@ fn validate_key(yaml: &Yaml, key: &str, required: bool) -> ValidationResults {
 
 /// Check to see if a particular key is a child of the given yaml position
 /// (if the key isn't required, it's absence goes unremarked)
-fn validate_key_and_value(yaml: &Yaml, key: &str, validation_set: &HashSet<String>,  required: bool) -> ValidationResults {
+fn validate_key_and_value(
+    yaml: &Yaml,
+    key: &str,
+    validation_set: &HashSet<String>,
+    required: bool,
+) -> ValidationResults {
     let mut results = ValidationResults::new();
 
     let value = &yaml[key];
@@ -128,13 +131,17 @@ fn validate_key_and_value(yaml: &Yaml, key: &str, validation_set: &HashSet<Strin
     } else if required {
         match value {
             Yaml::String(value) => {
-                if validation_set.contains(value){
-                    results.pass_messages.push(format!("key {}: {} is a known value", key, value));
+                if validation_set.contains(value) {
+                    results
+                        .pass_messages
+                        .push(format!("key {}: {} is a known value", key, value));
                 } else {
-                    results.fail_messages.push(format!("key {}: {} is an unknown value", key, value));
+                    results
+                        .fail_messages
+                        .push(format!("key {}: {} is an unknown value", key, value));
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         };
         let pass_message = format!("{} is present", key);
         results.pass_messages.push(pass_message);
@@ -246,11 +253,8 @@ mod synthesis {
                 .push("Synthesis key is missing.".to_string());
         } else {
             results.include(validate_key(yaml, "Required Materials", true));
-            results.include(validate_key(
-                &yaml,
-                "Required Alchemy Level",
-                true,
-            ));            results.include(validate_material_loops(
+            results.include(validate_key(&yaml, "Required Alchemy Level", true));
+            results.include(validate_material_loops(
                 &yaml["Material Loops"],
                 item_validation_sets,
             ));
@@ -292,42 +296,42 @@ mod synthesis {
         results
     }
 
-        /// validate if position values are unique for each material loop.
-        /// 
-        /// improvement: use Linked From Position keys to validate distance as well?
-        fn validate_unique_positions(material_loops: &[Yaml]) -> ValidationResults {
-            let mut results = ValidationResults::new();
-            let mut position_set = HashSet::new();
-            for material_loop in material_loops {
-                if let Yaml::Hash(material_loop_hash) = material_loop {
-                    for (name, details) in material_loop_hash {
-                        if let Yaml::String(name) = name {
-                            match &details["Position"] {
-                                Yaml::BadValue => results
-                                    .fail_messages
-                                    .push(format!("loop '{}' is missing position", name)),
-                                Yaml::Integer(position) => {
-                                    if position_set.contains(&position) {
-                                        results.fail_messages.push(format!(
-                                            "loop '{}' has duplicate position value: {}",
-                                            name, position
-                                        ));
-                                    } else {
-                                        results.pass_messages.push(format!(
-                                            "loop '{}' has new position value: {}",
-                                            name, position
-                                        ));
-                                        position_set.insert(position);
-                                    }
+    /// validate if position values are unique for each material loop.
+    ///
+    /// improvement: use Linked From Position keys to validate distance as well?
+    fn validate_unique_positions(material_loops: &[Yaml]) -> ValidationResults {
+        let mut results = ValidationResults::new();
+        let mut position_set = HashSet::new();
+        for material_loop in material_loops {
+            if let Yaml::Hash(material_loop_hash) = material_loop {
+                for (name, details) in material_loop_hash {
+                    if let Yaml::String(name) = name {
+                        match &details["Position"] {
+                            Yaml::BadValue => results
+                                .fail_messages
+                                .push(format!("loop '{}' is missing position", name)),
+                            Yaml::Integer(position) => {
+                                if position_set.contains(&position) {
+                                    results.fail_messages.push(format!(
+                                        "loop '{}' has duplicate position value: {}",
+                                        name, position
+                                    ));
+                                } else {
+                                    results.pass_messages.push(format!(
+                                        "loop '{}' has new position value: {}",
+                                        name, position
+                                    ));
+                                    position_set.insert(position);
                                 }
-                                _ => {}
-                            };
-                        }
+                            }
+                            _ => {}
+                        };
                     }
                 }
             }
-            results
         }
+        results
+    }
 
     fn validate_material_loop_contents(
         yaml: &Yaml,
