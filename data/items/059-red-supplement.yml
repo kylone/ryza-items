@@ -1,0 +1,131 @@
+---
+Name: Red Supplement 
+Item Number: 59             
+Level: 1                  
+Classifications:         
+- Synthesis Materials
+- Synthesis Item
+Category:                 
+- (Supplement)
+Element:                   
+- Fire
+Materials:
+- (Flower)
+- (Water)
+
+Synthesis:               # synthesis details (only for synthesized items)
+  Required Materials: 3    # the minimum number of materials needed to synthesize the item
+  Required Alchemy Level: 1 #  the required alchemist level needed to synthesize the item 
+  Material Loops:        # a list of material loops for the item
+    - Effect 1:            
+        Distance: 0        
+        Position: 1       # a unique index of the loop, used for linking loops
+        Material: (Flower)       # the material that can be used in the loop
+        Levels:          # the levels of effects that the loop can add to the synthesis
+        - Synth Quality +5:       
+            Element:
+            - Fire: 2
+        - Synth Quality +7:       
+            Element:
+            - Fire: 3
+        - Synth Quality +10:       
+            Element:
+            - Fire: 4
+        - Synth Quality +12:       
+            Element:
+            - Fire: 5
+    - Quality:
+        Distance: 1
+        Position: 2
+        Linked From Position: 1
+        Material: (Water)
+        Levels:
+        - Quality +10:
+            Element:
+            - Ice: 1
+        - Quality +15:
+            Element:
+            - Ice: 2
+        - Quality +20:
+            Element:
+            - Ice: 3
+        - Quality +25:
+            Element:
+            - Ice: 4
+        Unlock:
+        - Fire: 2
+    - Effect 2:
+        Distance: 2
+        Position: 3
+        Linked From Position: 2
+        Material: (Flower)
+        Levels:
+        - Add (Gunpowder):
+            Element:
+            - Fire: 3
+        Unlock:
+        - Ice: 2
+    - Traits:
+        Distance: 3
+        Position: 4
+        Linked From Position: 3
+        Material: (Flower)
+        Levels:
+        - Added 1 trait slot(s):
+            Element:
+            - Fire: 1
+    - Quality:
+        Distance: 3
+        Position: 5
+        Linked From Position: 2
+        Material: (Water)
+        Levels:
+        - Quality +10:
+            Element:
+            - Ice: 1
+        - Quality +15:
+            Element:
+            - Ice: 2
+        - Quality +20:
+            Element:
+            - Ice: 3
+        - Quality +25:
+            Element:
+            - Ice: 4
+        Unlock:
+        - Fire: 2
+    - Traits:
+        Distance: 4
+        Position: 6
+        Linked From Position: 5
+        Material: (Flower)
+        Levels:
+        - Added 1 trait slot(s):
+            Element:
+            - Fire: 1
+    - Effect 3:
+        Distance: 4
+        Position: 7
+        Linked From Position: 5
+        Material: (Flower)
+        Levels:
+          - Add (Fuel):
+              Element:
+              - Fire: 3
+        Unlock:
+        - Ice: 2
+    - Traits:
+        Distance: 5
+        Position: 8
+        Linked From Position: 7
+        Material: (Water)
+        Levels:
+        - Added 1 trait slot(s):
+            Element:
+            - Ice: 1
+
+
+
+                
+
+

@@ -292,40 +292,42 @@ mod synthesis {
         results
     }
 
-    /// validate if position values are unique for each material loop
-    fn validate_unique_positions(material_loops: &[Yaml]) -> ValidationResults {
-        let mut results = ValidationResults::new();
-        let mut position_set = HashSet::new();
-        for material_loop in material_loops {
-            if let Yaml::Hash(material_loop_hash) = material_loop {
-                for (name, details) in material_loop_hash {
-                    if let Yaml::String(name) = name {
-                        match &details["Position"] {
-                            Yaml::BadValue => results
-                                .fail_messages
-                                .push(format!("loop '{}' is missing position", name)),
-                            Yaml::Integer(position) => {
-                                if position_set.contains(&position) {
-                                    results.fail_messages.push(format!(
-                                        "loop '{}' has duplicate position value: {}",
-                                        name, position
-                                    ));
-                                } else {
-                                    results.pass_messages.push(format!(
-                                        "loop '{}' has new position value: {}",
-                                        name, position
-                                    ));
-                                    position_set.insert(position);
+        /// validate if position values are unique for each material loop.
+        /// 
+        /// improvement: use Linked From Position keys to validate distance as well?
+        fn validate_unique_positions(material_loops: &[Yaml]) -> ValidationResults {
+            let mut results = ValidationResults::new();
+            let mut position_set = HashSet::new();
+            for material_loop in material_loops {
+                if let Yaml::Hash(material_loop_hash) = material_loop {
+                    for (name, details) in material_loop_hash {
+                        if let Yaml::String(name) = name {
+                            match &details["Position"] {
+                                Yaml::BadValue => results
+                                    .fail_messages
+                                    .push(format!("loop '{}' is missing position", name)),
+                                Yaml::Integer(position) => {
+                                    if position_set.contains(&position) {
+                                        results.fail_messages.push(format!(
+                                            "loop '{}' has duplicate position value: {}",
+                                            name, position
+                                        ));
+                                    } else {
+                                        results.pass_messages.push(format!(
+                                            "loop '{}' has new position value: {}",
+                                            name, position
+                                        ));
+                                        position_set.insert(position);
+                                    }
                                 }
-                            }
-                            _ => {}
-                        };
+                                _ => {}
+                            };
+                        }
                     }
                 }
             }
+            results
         }
-        results
-    }
 
     fn validate_material_loop_contents(
         yaml: &Yaml,
