@@ -16,13 +16,14 @@ impl ValidationResults {
     ///
     /// The intent here is to have each type of validation to add messages to the total result
     /// while providing a means to reach to a particular result's `valid` value.
-    fn include(&mut self, other: ValidationResults) {
+    fn include(&mut self, other: ValidationResults) -> &mut ValidationResults {
         // need to make other mutable to move vec contents
         let mut other = other;
 
         self.valid = self.valid && other.valid;
         self.pass_messages.append(&mut other.pass_messages);
         self.fail_messages.append(&mut other.fail_messages);
+        self
     }
 
     fn new() -> ValidationResults {
@@ -92,21 +93,30 @@ fn validate_key(yaml: &Yaml, key: &str, required: bool) -> ValidationResults {
     let mut results = ValidationResults::new();
 
     let value = &yaml[key];
-
-    if value.is_badvalue() && required {
-        results
-            .fail_messages
-            .push(format!("'{}' key is missing", key));
-        results.valid = false;
-    } else if required {
-        let value_message = match value {
-            Yaml::String(value) => format!(": {}", value),
-            Yaml::Integer(value) => format!(": {}", value),
-            _ => "".to_string(),
-        };
-        let pass_message = format!("{} is present{}", key, value_message);
-        results.pass_messages.push(pass_message);
-        results.valid = true;
+    match value {
+        Yaml::BadValue if required => {
+            results
+                .fail_messages
+                .push(format!("'{}' key is missing", key));
+            results.valid = false;
+        }
+        Yaml::BadValue => {} // if this key isn't required, BadValue means do nothing
+        Yaml::String(value) => {
+            results
+                .pass_messages
+                .push(format!("{} is present: {}", key, value));
+            results.valid = true;
+        }
+        Yaml::Integer(value) => {
+            results
+                .pass_messages
+                .push(format!("{} is present: {}", key, value));
+            results.valid = true;
+        }
+        _ => {
+            results.pass_messages.push(format!("{} is present", key));
+            results.valid = true;
+        }
     }
     results
 }
@@ -122,30 +132,30 @@ fn validate_key_and_value(
     let mut results = ValidationResults::new();
 
     let value = &yaml[key];
-
-    if value.is_badvalue() && required {
-        results
-            .fail_messages
-            .push(format!("'{}' key is missing", key));
-        results.valid = false;
-    } else if required {
-        match value {
-            Yaml::String(value) => {
-                if validation_set.contains(value) {
-                    results
-                        .pass_messages
-                        .push(format!("key {}: {} is a known value", key, value));
-                } else {
-                    results
-                        .fail_messages
-                        .push(format!("key {}: {} is an unknown value", key, value));
-                }
+    match value {
+        Yaml::BadValue if required => {
+            results
+                .fail_messages
+                .push(format!("'{}' key is missing", key));
+            results.valid = false;
+        }
+        Yaml::BadValue => {} // if this key isn't required, BadValue means do nothing
+        Yaml::String(value) => {
+            if validation_set.contains(value) {
+                results
+                    .pass_messages
+                    .push(format!("key {}: {} is a known value", key, value));
+            } else {
+                results
+                    .fail_messages
+                    .push(format!("key {}: {} is an unknown value", key, value));
             }
-            _ => {}
-        };
-        let pass_message = format!("{} is present", key);
-        results.pass_messages.push(pass_message);
-        results.valid = true;
+        }
+        _ => {
+            results
+                .fail_messages
+                .push(format!("key {}: value is not a string", key));
+        }
     }
     results
 }
@@ -187,15 +197,16 @@ fn validate_list_values(
                         .push(format!("{}: {} is an unknown value", key, value));
                 }
             }
-            if let Yaml::Hash(value) = value {
-                for (hash_key, _) in value {
-                    if let Yaml::String(hash_key) = hash_key {
-                        if !validation_set.contains(hash_key) {
-                            results.valid = false;
-                            results
-                                .fail_messages
-                                .push(format!("{}: {} is an unknown value", key, hash_key));
-                        }
+            if let Yaml::Hash(hash_map) = value {
+                for hash_key in hash_map
+                    .iter()
+                    .filter_map(|(hash_key, _)| hash_key.as_str())
+                {
+                    if !validation_set.contains(hash_key) {
+                        results.valid = false;
+                        results
+                            .fail_messages
+                            .push(format!("{}: {} is an unknown value", key, hash_key));
                     }
                 }
             }
@@ -227,18 +238,18 @@ mod synthesis {
         let value = &yaml["Classifications"];
 
         let no_synthesis_classification = "Materials";
-        let mut has_systhesis_classification = true;
+        let mut has_synthesis_classification = true;
 
         if let Yaml::Array(list) = value {
             for value in list {
                 if let Yaml::String(value) = value {
                     if value == no_synthesis_classification {
-                        has_systhesis_classification = false
+                        has_synthesis_classification = false
                     }
                 }
             }
         }
-        has_systhesis_classification
+        has_synthesis_classification
     }
 
     pub fn validate_synthesis(
@@ -253,7 +264,7 @@ mod synthesis {
                 .push("Synthesis key is missing.".to_string());
         } else {
             results.include(validate_key(yaml, "Required Materials", true));
-            results.include(validate_key(&yaml, "Required Alchemy Level", true));
+            results.include(validate_key(yaml, "Required Alchemy Level", true));
             results.include(validate_material_loops(
                 &yaml["Material Loops"],
                 item_validation_sets,
@@ -279,18 +290,27 @@ mod synthesis {
         item_validation_sets: &ItemValidationSets,
     ) -> ValidationResults {
         let mut results = ValidationResults::new();
-        if yaml.is_badvalue() {
-            results
-                .fail_messages
-                .push("Material Loops key is missing.".to_string());
-        } else if let Yaml::Array(material_loops) = yaml {
-            // check to see if position values are unique
-            results.include(validate_unique_positions(material_loops));
-            for material_loop in material_loops {
-                results.include(validate_material_loop_contents(
-                    material_loop,
-                    item_validation_sets,
-                ));
+        match yaml {
+            Yaml::BadValue => {
+                results
+                    .fail_messages
+                    .push("Material Loops key is missing.".to_string());
+            }
+            Yaml::Array(material_loops) => {
+                // check to see if position values are unique
+                results.include(validate_unique_positions(material_loops));
+
+                for material_loop in material_loops {
+                    results.include(validate_material_loop_contents(
+                        material_loop,
+                        item_validation_sets,
+                    ));
+                }
+            }
+            _ => {
+                results
+                    .fail_messages
+                    .push(String::from("Material Loops key is not a list."));
             }
         }
         results
@@ -390,36 +410,34 @@ mod synthesis {
     ) -> ValidationResults {
         let mut results = ValidationResults::new();
         if let Yaml::Array(level_vec) = yaml {
-            for level in level_vec {
-                if let Yaml::Hash(level_hash) = level {
-                    for (loop_effect, details) in level_hash {
-                        if let Yaml::String(loop_effect) = loop_effect {
-                            results.include(validate_list(
-                                &details,
-                                "Element",
-                                &item_validation_sets.elements,
-                                true,
-                            ));
-                            let is_recipe_morph = loop_effect == "Recipe Morph";
-                            results.include(validate_key_and_value(
-                                &details,
-                                "Recipe",
-                                &item_validation_sets.materials,
-                                is_recipe_morph,
-                            ));
+            for level in level_vec.iter().filter_map(|level| level.as_hash()) {
+                for (loop_effect, details) in level {
+                    if let Yaml::String(loop_effect) = loop_effect {
+                        results.include(validate_list(
+                            &details,
+                            "Element",
+                            &item_validation_sets.elements,
+                            true,
+                        ));
+                        let is_recipe_morph = loop_effect == "Recipe Morph";
+                        results.include(validate_key_and_value(
+                            &details,
+                            "Recipe",
+                            &item_validation_sets.materials,
+                            is_recipe_morph,
+                        ));
 
-                            // prefix validation messages with the loop effect name
-                            results.pass_messages = results
-                                .pass_messages
-                                .drain(0..)
-                                .map(|msg| format!("{}: {}", loop_effect, msg))
-                                .collect();
-                            results.fail_messages = results
-                                .fail_messages
-                                .drain(0..)
-                                .map(|msg| format!("{}: {}", loop_effect, msg))
-                                .collect();
-                        }
+                        // prefix validation messages with the loop effect name
+                        results.pass_messages = results
+                            .pass_messages
+                            .drain(0..)
+                            .map(|msg| format!("{}: {}", loop_effect, msg))
+                            .collect();
+                        results.fail_messages = results
+                            .fail_messages
+                            .drain(0..)
+                            .map(|msg| format!("{}: {}", loop_effect, msg))
+                            .collect();
                     }
                 }
             }

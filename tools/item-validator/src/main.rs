@@ -21,7 +21,7 @@ fn get_item_validation_sets(path: &str) -> validation_sets::ItemValidationSets {
 }
 
 fn validate_items(
-    item_contents: &Vec<FileContents>,
+    item_contents: &[FileContents],
     item_validation_sets: &ItemValidationSets,
     verbose: bool,
 ) {

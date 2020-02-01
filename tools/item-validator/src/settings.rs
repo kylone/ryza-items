@@ -20,9 +20,9 @@ pub fn get_settings() -> Settings {
     let yaml = &docs[0];
 
     if let Yaml::String(data_folder) = &yaml["Data Folder"] {
-        return Settings {
+        Settings {
             data_folder: data_folder.to_string(),
-        };
+        }
     } else {
         panic!("unable to find 'Data Folder' in settings file.")
     }

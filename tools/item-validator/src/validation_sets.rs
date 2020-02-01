@@ -60,7 +60,7 @@ fn add_to_set(yaml: &Yaml, key: &str, set: &mut HashSet<String>) {
 
 pub fn add_materials_to_validation_sets(
     item_validation_sets: &mut ItemValidationSets,
-    item_contents: &Vec<FileContents>,
+    item_contents: &[FileContents],
 ) -> Result<(), ScanError> {
     for file in item_contents {
         let docs = YamlLoader::load_from_str(&file.contents)?;
