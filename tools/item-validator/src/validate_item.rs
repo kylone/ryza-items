@@ -144,11 +144,11 @@ fn validate_key_and_value(
             if validation_set.contains(value) {
                 results
                     .pass_messages
-                    .push(format!("key {}: {} is a known value", key, value));
+                    .push(format!("key {}: known value '{}'", key, value));
             } else {
                 results
                     .fail_messages
-                    .push(format!("key {}: {} is an unknown value", key, value));
+                    .push(format!("key {}: unknown value '{}' (typo, or item file needed)", key, value));
             }
         }
         _ => {
@@ -229,7 +229,7 @@ fn validate_list_values(
 mod synthesis {
     use crate::validate_item::{validate_key, validate_key_and_value, validate_list};
     use crate::validate_item::{ItemValidationSets, ValidationResults};
-    use std::collections::HashSet;
+    use std::collections::HashMap;
     use yaml_rust::Yaml;
 
     /// if the item has a classification of "Materials", then the item is a gathered item. Otherwise,
@@ -261,7 +261,7 @@ mod synthesis {
         if yaml.is_badvalue() {
             results
                 .fail_messages
-                .push("Synthesis key is missing.".to_string());
+                .push(String::from("Synthesis key is missing."));
         } else {
             results.include(validate_key(yaml, "Required Materials", true));
             results.include(validate_key(yaml, "Required Alchemy Level", true));
@@ -316,36 +316,51 @@ mod synthesis {
         results
     }
 
-    /// validate if position values are unique for each material loop.
-    ///
-    /// improvement: use Linked From Position keys to validate distance as well?
+    /// validate if position values are unique for each material loop, and distance values make sense.
+    #[allow(clippy::map_entry)] // not sure how to make this method better using std::collections::hash_map::Entry...
     fn validate_unique_positions(material_loops: &[Yaml]) -> ValidationResults {
         let mut results = ValidationResults::new();
-        let mut position_set = HashSet::new();
-        for material_loop in material_loops {
-            if let Yaml::Hash(material_loop_hash) = material_loop {
-                for (name, details) in material_loop_hash {
-                    if let Yaml::String(name) = name {
-                        match &details["Position"] {
-                            Yaml::BadValue => results
-                                .fail_messages
-                                .push(format!("loop '{}' is missing position", name)),
-                            Yaml::Integer(position) => {
-                                if position_set.contains(&position) {
-                                    results.fail_messages.push(format!(
-                                        "loop '{}' has duplicate position value: {}",
-                                        name, position
-                                    ));
-                                } else {
-                                    results.pass_messages.push(format!(
-                                        "loop '{}' has new position value: {}",
-                                        name, position
-                                    ));
-                                    position_set.insert(position);
-                                }
-                            }
-                            _ => {}
-                        };
+        let mut hash_map = HashMap::new();
+        for material_loop in material_loops.iter().filter_map(|yaml| yaml.as_hash()) {
+            // populate hash_map with position -> distance maps,
+            // ensuring unique positions for each loop
+            for (name, details) in material_loop {
+                if let (Yaml::String(name), Yaml::Integer(position), Yaml::Integer(distance)) =
+                    (name, &details["Position"], &details["Distance"])
+                {
+                    if hash_map.contains_key(&position) {
+                        results.fail_messages.push(format!(
+                            "loop '{}' has duplicate position value: {}",
+                            name, position
+                        ));
+                    } else {
+                        results.pass_messages.push(format!(
+                            "loop '{}' has new position value: {}",
+                            name, position
+                        ));
+                        hash_map.insert(position, distance);
+                    }
+                }
+            }
+            // now, confirm Linked From Position keys
+            for (name, details) in material_loop {
+                if let (
+                    Yaml::String(name),
+                    Yaml::Integer(position),
+                    Yaml::Integer(linked_from_position),
+                    Yaml::Integer(distance),
+                ) = (
+                    name,
+                    &details["Position"],
+                    &details["Linked From Position"],
+                    &details["Distance"],
+                ) {
+                    let linked_from_distance = hash_map[linked_from_position];
+                    if linked_from_distance >= distance {
+                        results.fail_messages.push(format!(
+                            "loop '{}' position {}: linked to loop with same or higher distance value",
+                            name, position
+                        ));
                     }
                 }
             }
