@@ -258,7 +258,7 @@ mod synthesis {
     ) -> ValidationResults {
         let mut results = ValidationResults::new();
 
-        if yaml.is_badvalue() {
+        if let Yaml::BadValue = yaml {
             results
                 .fail_messages
                 .push(String::from("Synthesis key is missing."));
